@@ -13,12 +13,13 @@ class FightDetector:
         if model_path is None:
             # Default path handling
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            model_path = os.path.join(current_dir, 'yolov8', 'yolos8.pt')
+            # Use standard yolov8n.pt from parent directory
+            model_path = os.path.join(current_dir, '..', 'yolov8n.pt')
             
         print(f"Loading Fight Detection Model from: {model_path}")
         self.model = YOLO(model_path)
-        # Class 1 is Violence/Fight according to README
-        self.target_class_id = 1 
+        # Class 0 is Person in COCO. Switching to Person detection as requested for 'yolov8'.
+        self.target_class_id = 0 
 
     def detect(self, frame, conf_threshold=0.4):
         """

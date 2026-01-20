@@ -44,10 +44,7 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # DROP existing table to reset schema (Requested by user)
-    # DROP existing table to reset schema (Requested by user)
-    cursor.execute("DROP TABLE IF EXISTS sessions")
-    cursor.execute("DROP TABLE IF EXISTS session_videos")
+
     
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sessions (

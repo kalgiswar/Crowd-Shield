@@ -81,29 +81,58 @@ def process_frame(jpeg_bytes, metadata, mode):
     if frame is None:
         return None
 
-    # Draw based on mode
-    if mode == "fight":
-        detections = metadata.get("fight", [])
-        color = (0, 0, 255) # Red
-        label_prefix = "Fight"
-    elif mode == "fire":
-        detections = metadata.get("fire", [])
-        color = (0, 165, 255) # Orange
-        label_prefix = "Fire"
-    else:
-        detections = []
-        color = (0, 255, 0)
-        label_prefix = "Unknown"
+    # Determine Color and Label based on EVENT TYPE (sent from Vision Model)
+    event_type = metadata.get("event_type")
+    
+    # Defaults
+    detections_to_draw = []
+    color = (0, 255, 0) # Green (Safe)
+    label_prefix = ""
 
-    # Common Drawing Logic
-    for d in detections:
+    if event_type == "Fire":
+        detections_to_draw = metadata.get("fire", [])
+        color = (0, 0, 255) # Red for Fire
+        label_prefix = "FIRE"
+    elif event_type == "Violence":
+        detections_to_draw = metadata.get("fight", [])
+        color = (0, 0, 255) # Red for Violence
+        label_prefix = "VIOLENCE"
+    elif event_type == "Stampede":
+        detections_to_draw = metadata.get("crowd", [])
+        color = (0, 255, 255) # Yellow for Stampede
+        label_prefix = "STAMPEDE"
+    else:
+        # If no major event, maybe show crowdedness or just green boxes for debug?
+        # Let's show persons in Green if requested, or nothing.
+        # For "under a box it will say stampid", we prioritize the active event.
+        pass
+
+    # Draw Boxes
+    for d in detections_to_draw:
         bbox = d.get('bbox')
         conf = d.get('confidence', 0.0)
         if bbox:
             x1, y1, x2, y2 = map(int, bbox)
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, f"{label_prefix} {conf:.2f}", (x1, y1 - 10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            # The Label "under a box" (or above)
+            text = f"{label_prefix} {conf:.2f}"
+            
+            # Draw generic Person label if normal state
+            if not event_type and d.get("label") == "Person":
+                 text = f"Person {conf:.2f}"
+                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 200, 0), 1)
+            
+            # Draw text with background for visibility
+            (w, h), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.rectangle(frame, (x1, y1 - 25), (x1 + w, y1), color, -1)
+            cv2.putText(frame, text, (x1, y1 - 5),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
+    # Add Global Alert Text
+    if event_type:
+         cv2.putText(frame, f"ALERT: {event_type.upper()}", (30, 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
     
     # Re-encode
     ret, buffer = cv2.imencode('.jpg', frame)

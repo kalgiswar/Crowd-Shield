@@ -19,31 +19,45 @@ def main():
     filename = f"manual_test_{timestamp}.mp4"
     filepath = os.path.join(OUTPUT_DIR, filename)
 
-    # Create synthetic video instead of camera
-    width, height = 640, 480
+    print(f"Opening Camera {CAMERA_INDEX}...")
+    cap = cv2.VideoCapture(CAMERA_INDEX)
+    if not cap.isOpened():
+        print(f"Failed to open camera {CAMERA_INDEX}, trying 0...")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Failed to open any camera.")
+            return
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 640)
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 480)
     fps = 15.0
+
+    # Use mp4v since avc1 failed
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(filepath, fourcc, fps, (width, height))
-    
-    import numpy as np
-    
-    print(f"Generating synthetic video (20s) to {filepath}...")
-    
-    # Generate 5 seconds of video (enough for test)
-    frames_to_generate = int(fps * 5) 
-    
-    for i in range(frames_to_generate):
-        # Create a frame with changing color
-        frame = np.zeros((height, width, 3), dtype=np.uint8)
-        color_val = (i * 5) % 255
-        frame[:] = (0, 0, color_val) # BGR
-        
-        cv2.putText(frame, f"TEST VIDEO FRAME {i}", (50, 50), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    start_time = time.time()
+    print(f"Recording {DURATION} seconds to {filepath}...")
+
+    while (time.time() - start_time) < DURATION:
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to read frame")
+            break
         out.write(frame)
         
+        # Display feedback
+        elapsed = int(time.time() - start_time)
+        cv2.putText(frame, f"REC {elapsed}/{DURATION}s", (50, 50), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.imshow("Recording Test", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
     out.release()
-    print("Synthetic video generation complete.")
+    cv2.destroyAllWindows()
+    print("Recording complete.")
 
     # Upload
     print(f"Uploading to Agent at {AGENT_URL}...")

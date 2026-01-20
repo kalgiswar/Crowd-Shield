@@ -80,7 +80,7 @@ def process_video_with_gemini(video_path: Path, suspected_type: str = "Violence"
         print("Sending frame to Gemini for validation...")
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content([
-            "Analyze this image for safety. Classify it as one of the following:\n0 - Fire\n1 - Violence\n2 - Normal/Safe\nAlso provide a Severity (Critical/Warning/Informational) and a Confidence score (0-100%).\nReturn the response in this format:\nClass: [0/1/2]\nSeverity: [Severity]\nConfidence: [Score%]",
+            "Analyze this image for safety. Classify it as one of the following:\n0 - Fire\n1 - Violence\n2 - Normal/Safe\n3 - Stampede\nAlso provide a Severity (Critical/Warning/Informational) and a Confidence score (0-100%).\nReturn the response in this format:\nClass: [0/1/2/3]\nSeverity: [Severity]\nConfidence: [Score%]",
             pil_image
         ])
         
@@ -97,6 +97,7 @@ def process_video_with_gemini(video_path: Path, suspected_type: str = "Violence"
             if "Class:" in line:
                 if "0" in line: event_type = "Fire"
                 elif "1" in line: event_type = "Violence"
+                elif "3" in line: event_type = "Stampede"
                 else: event_type = "Normal"
             if "Severity:" in line:
                 severity = line.split("Severity:")[1].strip()
@@ -173,7 +174,7 @@ async def agent_endpoint(
         result = process_video_with_gemini(file_path, suspected_type=event_type)
         event_result = result['event_type']
         
-        if event_result == "Fire" or event_result == "Violence":
+        if event_result == "Fire" or event_result == "Violence" or event_result == "Stampede":
             handle_event(file_path, result, camera_id, latitude, longitude)
         else:
             print(f"Event judged as {event_result} (Safe/Normal). No action taken.")

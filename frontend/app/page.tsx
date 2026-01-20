@@ -111,7 +111,7 @@ export default function Dashboard() {
   const getIconForSession = (desc: string) => {
     if (desc.toLowerCase().includes("fire")) return <FireIcon className="w-6 h-6 text-orange-500" />;
     if (desc.toLowerCase().includes("violence") || desc.toLowerCase().includes("weapon")) return <HandRaisedIcon className="w-6 h-6 text-red-600" />;
-    if (desc.toLowerCase().includes("crowd")) return <UsersIcon className="w-6 h-6 text-amber-500" />; // Assuming fallback
+    if (desc.toLowerCase().includes("crowd") || desc.toLowerCase().includes("stampede")) return <UsersIcon className="w-6 h-6 text-amber-500" />; // Stampede/Crowd
     return <ExclamationTriangleIcon className="w-6 h-6 text-gray-500" />;
   };
 
@@ -225,14 +225,14 @@ export default function Dashboard() {
         </section>
 
         {/* Main Interface Grid */}
-        <section className="grid grid-cols-12 gap-6 h-[700px]">
+        <section className="grid grid-cols-12 gap-6 h-[900px]">
 
           {/* Live Feed (Spans Full Width of Top Row if we wanted, but sticking to requested layout) 
                 Wait, prompt said Middle Section is Live Feed. But usually dashboard has hierarchical view. 
                 Let's make the Top 2/3rds the Live Feed and Bottom 1/3rd split between Clip and Details.
             */}
 
-          <div className="col-span-12 h-[55%] relative group bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800">
+          <div className="col-span-12 h-[65%] relative group bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800">
             {selectedSession ? (
               <>
                 <img
@@ -261,36 +261,8 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Middle Action Overlay (Simulated) */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-2 border-red-500/50 bg-red-500/10 w-96 h-64 rounded-lg flex flex-col justify-between p-4 backdrop-blur-[2px]">
-                  <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 self-start rounded uppercase flex gap-1 items-center">
-                    <ExclamationTriangleIcon className="w-3 h-3" />
-                    POTENTIAL {selectedSession.description.split(':')[0]}
-                  </div>
-                  <div className="bg-black/80 backdrop-blur text-white p-3 rounded border border-white/10">
-                    <div className="flex justify-between items-end mb-1">
-                      <span className="text-[10px] font-bold uppercase text-gray-400">Confidence</span>
-                      <span className="text-red-500 font-mono font-bold">{selectedSession.confidence || "0%"}</span>
-                    </div>
-                    <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-600 w-[94%]"></div>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={(e) => handleAction(e, selectedSession.session_id, 'reject')}
-                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-[10px] py-1.5 rounded font-bold transition-colors"
-                      >
-                        REJECT
-                      </button>
-                      <button
-                        onClick={(e) => handleAction(e, selectedSession.session_id, 'approve')}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-[10px] py-1.5 rounded font-bold transition-colors"
-                      >
-                        APPROVE
-                      </button>
-                    </div>
-                  </div>
-                </div>
+
+
               </>
             ) : (
               // Default View (No Incident Selected) - Show Camera 1 Feed
@@ -314,16 +286,16 @@ export default function Dashboard() {
           </div>
 
           {/* Bottom Row: Recorded Clip (Left) and Details (Right) */}
-          <div className="col-span-8 bg-black rounded-xl overflow-hidden relative border border-gray-800 h-[42%] shadow-lg">
+          <div className="col-span-8 bg-black rounded-xl overflow-hidden relative border border-gray-800 h-[33%] shadow-lg">
             <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
               <VideoCameraIcon className="w-4 h-4 text-orange-500" />
-              <span className="text-xs font-bold text-white uppercase tracking-wider">Looping Clip</span>
-              <span className="text-[10px] text-gray-400 font-mono">INCIDENT #{selectedSession?.session_id.slice(0, 8)}</span>
+              <span className="text-xs font-bold text-white uppercase tracking-wider animate-pulse">Incident Recording</span>
+              <span className="text-[10px] text-gray-400 font-mono">#{selectedSession?.session_id.slice(0, 8)}</span>
             </div>
             {selectedSession && selectedSession.video_url ? (
               <video
                 src={selectedSession.video_url}
-                className="w-full h-full object-cover opacity-80"
+                className="w-full h-full object-cover"
                 autoPlay loop muted playsInline
               />
             ) : (
@@ -333,7 +305,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="col-span-4 bg-white rounded-xl shadow-lg border border-gray-100 p-6 h-[42%] flex flex-col">
+          <div className="col-span-4 bg-white rounded-xl shadow-lg border border-gray-100 p-6 h-[33%] flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
                 <div className="bg-gray-200 p-1 rounded-full"><div className="w-1 h-1 bg-gray-500 rounded-full"></div></div>

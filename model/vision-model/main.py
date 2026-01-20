@@ -18,6 +18,7 @@ if current_dir not in sys.path:
 try:
     from fight_detection.model import FightDetector
     from fire_detection.model import FireDetector
+    from crowd_detection.model import CrowdDetector
     from weapon_detection.model import WeaponDetector
 except ImportError as e:
     print(f"Import Error: {e}")
@@ -33,6 +34,7 @@ CAMERA_ID = os.getenv("CAMERA_ID", "cam1")
 LIVESTREAM_URL = os.getenv("LIVESTREAM_URL", "ws://localhost:8000/ws/push/cam1")
 AGENT_URL = os.getenv("AGENT_URL", "http://localhost:8001/agent")
 BUFFER_SECONDS = 10
+STAMPEDE_THRESHOLD = 5 # Number of people to trigger a stampede alert
 FPS = 15
 LATITUDE = "0.0"
 LONGITUDE = "0.0"
@@ -44,6 +46,7 @@ class VisionSystem:
         print("Initializing Vision System...")
         self.fight_detector = FightDetector()
         self.fire_detector = FireDetector()
+        self.crowd_detector = CrowdDetector()
         # self.weapon_detector = WeaponDetector()
         
         print(f"Opening Camera Index: {CAMERA_INDEX} (Targeting OBS Virtual Camera)")
@@ -156,9 +159,10 @@ class VisionSystem:
                         
                     # Run Detections in parallel
                     # Using asyncio.gather to run all detections concurrently
-                    fight_detections, fire_detections, weapon_detections = await asyncio.gather(
-                        asyncio.to_thread(self.fight_detector.detect, frame, conf_threshold=0.65),
-                        asyncio.to_thread(self.fire_detector.detect, frame, conf_threshold=0.65),
+                    fight_detections, fire_detections, crowd_detections, weapon_detections = await asyncio.gather(
+                        asyncio.to_thread(self.fight_detector.detect, frame, conf_threshold=0.75),
+                        asyncio.to_thread(self.fire_detector.detect, frame, conf_threshold=0.40),
+                        asyncio.to_thread(self.crowd_detector.detect, frame, conf_threshold=0.50),
                         # asyncio.to_thread(self.weapon_detector.detect, frame, conf_threshold=0.65)
                         asyncio.sleep(0, result=[]) # Return empty list for weapon detections
                     )
@@ -169,17 +173,12 @@ class VisionSystem:
                         "type": "detections",
                         "fight": fight_detections,
                         "fire": fire_detections,
-                        "weapon": weapon_detections
+                        "crowd": crowd_detections,
+                        "weapon": weapon_detections,
+                        "event_type": None # Placeholder, will be updated below
                     }
-                    
-                    # Send Metadata (Text)
-                    try:
-                        await websocket.send(json.dumps(metadata))
-                    except Exception as e:
-                        print(f"WS Send JSON Error: {e}")
-                        break
 
-                    # Check for events to trigger recording (local logic)
+                    # --- Event Detection Logic (Moved Up) ---
                     # Select the detection with the highest confidence score
                     event_type = None
                     max_confidence = 0.0
@@ -188,16 +187,38 @@ class VisionSystem:
                         if det["confidence"] > max_confidence:
                             max_confidence = det["confidence"]
                             event_type = "Violence"
+                            
+                    # Prioritize Fire
+                    if fire_detections:
+                        fire_conf = max(d["confidence"] for d in fire_detections)
+                        max_confidence = fire_conf
+                        event_type = "Fire"
+
+                    # Check for Stampede
+                    if not event_type and len(crowd_detections) >= STAMPEDE_THRESHOLD:
+                         event_type = "Stampede"
+                         if crowd_detections:
+                             max_confidence = max(d["confidence"] for d in crowd_detections)
+
+                    # Update Metadata with calculated event type
+                    metadata["event_type"] = event_type
+                    # ----------------------------------------
                     
-                    for det in fire_detections:
-                        if det["confidence"] > max_confidence:
-                            max_confidence = det["confidence"]
-                            event_type = "Fire"
+                    # Send Metadata (Text)
+                    try:
+                        await websocket.send(json.dumps(metadata))
+                    except Exception as e:
+                        print(f"WS Send JSON Error: {e}")
+                        break
+
                     
-                    for det in weapon_detections:
-                        if det["confidence"] > max_confidence:
-                            max_confidence = det["confidence"]
-                            event_type = "Weapon"
+                    # Logic was moved up. We just use the calculated values now.
+                    # if event_type: ... (logic continues below)
+
+                    # for det in weapon_detections:
+                    #     if det["confidence"] > max_confidence:
+                    #         max_confidence = det["confidence"]
+                    #         event_type = "Weapon"
 
                     if event_type:
                         current_time = time.time()
